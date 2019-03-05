@@ -1,13 +1,37 @@
-import 'package:flutter_test/flutter_test.dart';
+import 'dart:io';
 
 import 'package:tftp/tftp.dart';
 
 void main() {
-//  test('adds one to input values', () {
-//    final calculator = Calculator();
-//    expect(calculator.addOne(2), 3);
-//    expect(calculator.addOne(-7), -6);
-//    expect(calculator.addOne(0), 1);
-//    expect(() => calculator.addOne(null), throwsNoSuchMethodError);
+//  RawDatagramSocket.bind("127.0.0.1", 6699).then((socket) {
+//    print("new socket:${socket.port}.");
+//    socket.listen((ev) {
+//      if (ev == RawSocketEvent.read) {
+//        print("${ev.toString()},${socket.receive().data.length}");
+//      }
+//    });
+//  });
+  TFtpServer.bind("127.0.0.1", 6699).then((server) {
+    server.listen((socket) {
+      socket.listen((packet) {
+        socket.write(File("D:\\temp\\${packet.file}"));
+      });
+    });
+  });
+//  test("RawDatagramSocket",(){
+//    RawDatagramSocket.bind("127.0.0.1", 6699).then((socket){
+//      socket.listen((ev){
+//        ev.toString();
+//      });
+//    });
+//  });
+//  test('Server bind', () {
+//    TFtpServer.bind("127.0.0.1",80).then((server){
+//      server.listen((socket){
+//        socket.listen((packet){
+//
+//        });
+//      });
+//    });
 //  });
 }
