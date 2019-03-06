@@ -42,24 +42,24 @@ class TFtpSocket extends Stream<TFtpPacket> {
 
         List<int> fileNameData = packetData[0];
         String fileName =
-            String.fromCharCodes(fileNameData, 2, fileNameData.length);
+        String.fromCharCodes(fileNameData, 2, fileNameData.length);
         List<int> transTypeData = packetData[1];
         String transType =
-            String.fromCharCodes(transTypeData, 0, transTypeData.length);
+        String.fromCharCodes(transTypeData, 0, transTypeData.length);
         print("$fileName $transType");
         _workType = WorkType.READ;
         _controller.add(TFtpPacket(file: fileName));
         break;
       case OpCode.WRQ_VALUE:
-        // 反ACK
-        // todo: TO IMPLEMENT
+      // 反ACK
+      // todo: TO IMPLEMENT
         break;
       case OpCode.ACK_VALUE:
-        // 当状态为读时有效
+      // 当状态为读时有效
         break;
       case OpCode.DATA_VALUE:
-        // 如果有WRQ做前置,写入文件,写文件完成后向下发写文件信息
-        // todo: TO IMPLEMENT
+      // 如果有WRQ做前置,写入文件,写文件完成后向下发写文件信息
+      // todo: TO IMPLEMENT
         break;
       case OpCode.ERROR_VALUE:
         break;
@@ -71,41 +71,58 @@ class TFtpSocket extends Stream<TFtpPacket> {
   }
 
   /// 客户端读取文件时用于写入文件内容
-  void write(File file) async {
+  Future write(File file) async {
+    Completer completer = Completer();
     if (_workType != WorkType.READ) {
       _controller.addError("Error Work Type");
-      return;
+      return completer.complete();
     }
 
     RawDatagramSocket sendSocket = await RawDatagramSocket.bind(
         localAddress, Random().nextInt(40000) + 10000);
     _fileWait2Write = await file.open();
     _blockNum = 0;
+
+    Completer<int> sendCompleter;
     sendSocket.listen((ev) async {
       if (RawSocketEvent.read == ev) {
         var data = sendSocket.receive();
         if (data.data[0] << 8 | data.data[1] == OpCode.ACK_VALUE) {
-          _blockNum++;
-          _blockNum = _blockNum > 65535 ? 0 : _blockNum;
-          List<int> data = await _fileWait2Write.read(blockSize);
-          List<int> sendPacket = [
-            [0, OpCode.DATA_VALUE],
-            [_blockNum >> 8, _blockNum & 255],
-            data
-          ].expand((x) => x).toList();
-          sendSocket.send(sendPacket, remoteAddress, remotePort);
+          var ackValue = data.data[2] << 8 | data.data[3];
+          if (null != sendCompleter) {
+            sendCompleter.complete(ackValue);
+          }
         }
       }
     });
-    _blockNum++;
-    _blockNum = _blockNum > 65535 ? 0 : _blockNum;
-    List<int> data = await _fileWait2Write.read(blockSize);
-    List<int> sendPacket = [
-      [0, OpCode.DATA_VALUE],
-      [_blockNum >> 8, _blockNum & 255],
-      data
-    ].expand((x) => x).toList();
-    sendSocket.send(sendPacket, remoteAddress, remotePort);
+
+    Future.microtask(() async {
+      List<int> dataBlock;
+      while ((dataBlock = await _fileWait2Write.read(blockSize)).length > 0) {
+        _blockNum++;
+        _blockNum = _blockNum > 65535 ? 0 : _blockNum;
+
+        List<int> sendPacket = [
+          [0, OpCode.DATA_VALUE],
+          [_blockNum >> 8, _blockNum & 255],
+          dataBlock
+        ].expand((x) => x).toList();
+
+        int ack;
+        int sendTime = 0;
+        do {
+          sendTime++;
+          sendSocket.send(sendPacket, remoteAddress, remotePort);
+          sendCompleter = Completer();
+          ack =
+          await sendCompleter.future.timeout(
+            Duration(seconds: 1), onTimeout: () => null,);
+        } while (ack != _blockNum || sendTime > 5);
+      }
+      completer.complete();
+    });
+
+    return completer.future;
   }
 
   void close() {

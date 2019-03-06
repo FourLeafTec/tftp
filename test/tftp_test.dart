@@ -14,7 +14,13 @@ void main() {
   TFtpServer.bind("127.0.0.1", 6699).then((server) {
     server.listen((socket) {
       socket.listen((packet) {
-        socket.write(File("D:\\temp\\${packet.file}"));
+        socket.write(File("D:\\temp\\${packet.file}")).then((_){
+          print("write done");
+          socket.close();
+        });
+      }, onDone: () {
+        print("socket done");
+        server.close();
       });
     });
   });

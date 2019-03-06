@@ -37,7 +37,7 @@ class TFtpServer extends Stream<TFtpSocket> {
     });
   }
 
-  void _initError() {
+  void _initError(error,stack) {
     close();
   }
 
