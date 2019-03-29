@@ -2,10 +2,9 @@ import 'dart:async';
 
 import 'package:tftp/tftp.dart';
 
-class TFtpClient extends Stream<TFtpSocket>{
+class TFtpClient extends Stream<TFtpServerSocket>{
   @override
-  StreamSubscription<TFtpSocket> listen(void Function(TFtpSocket event) onData, {Function onError, void Function() onDone, bool cancelOnError}) {
+  StreamSubscription<TFtpServerSocket> listen(void Function(TFtpServerSocket event) onData, {Function onError, void Function() onDone, bool cancelOnError}) {
     return null;
   }
-
 }
