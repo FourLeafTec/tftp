@@ -36,8 +36,8 @@ class TFtpServer extends Stream<TFtpServerSocket> {
         var datagram = _udpSocket.receive();
         var tid = "${datagram.address.toString()}:${datagram.port}";
         if (null == _socketDic[tid]) {
-          var socket = TFtpServerSocket(
-              _udpSocket.address, datagram.address, datagram.port);
+          var socket =
+              TFtpServerSocket(_udpSocket, datagram.address, datagram.port);
           _socketDic[tid] = socket;
           _controller.add(socket);
         }
@@ -66,12 +66,10 @@ class TFtpServer extends Stream<TFtpServerSocket> {
 }
 
 class TFtpServerSocket {
-  TFtpServerSocket(this.localAddress, this.remoteAddress, this.remotePort,
-      {this.blockSize = 512, this.onRead, this.onWrite, this.onError}) {
-    _workType = WorkType.IDLE;
-  }
+  TFtpServerSocket(this.socket, this.remoteAddress, this.remotePort,
+      {this.blockSize = 512, this.onRead, this.onWrite, this.onError});
 
-  InternetAddress localAddress;
+  RawDatagramSocket socket;
   InternetAddress remoteAddress;
   int remotePort;
   int blockSize;
@@ -79,10 +77,6 @@ class TFtpServerSocket {
   ReadFileCallBack onRead;
   WriteFileCallBack onWrite;
   ErrorCallBack onError;
-
-  WorkType _workType;
-  RandomAccessFile _fileWait2Write;
-  int _blockNum;
 
   void read(List<int> data) {
     switch (data[0] << 8 | data[1]) {
@@ -109,7 +103,6 @@ class TFtpServerSocket {
         String transType =
             String.fromCharCodes(transTypeData, 0, transTypeData.length);
         print("$fileName $transType");
-        _workType = WorkType.READ;
         ProgressCallback onReceive;
         if (null != onRead) {
           fileName = onRead(fileName, (progressCallback) {
@@ -119,7 +112,12 @@ class TFtpServerSocket {
         this._write(File(fileName), onReceiveProgress: onReceive);
         break;
       case OpCode.WRQ_VALUE:
-        // 反ACK
+        List<int> sendPacket = [
+          [0, OpCode.ACK_VALUE],
+          [0x00, 0x00],
+          []
+        ].expand((x) => x).toList();
+        socket.send(sendPacket, remoteAddress, remotePort);
         break;
       case OpCode.ACK_VALUE:
         throwError(Error.ILLEGAL_OPERATION);
@@ -140,14 +138,12 @@ class TFtpServerSocket {
 
   /// 客户端读取文件时用于写入文件内容
   Future _write(File file, {ProgressCallback onReceiveProgress}) async {
+    RandomAccessFile _fileWait2Write;
+    int _blockNum;
     Completer completer = Completer();
-    if (_workType != WorkType.READ) {
-      throwError(Error.ILLEGAL_OPERATION);
-      return completer.complete();
-    }
 
     RawDatagramSocket sendSocket = await RawDatagramSocket.bind(
-        localAddress, Random().nextInt(10000) + 40000);
+        socket.address, Random().nextInt(10000) + 40000);
     _fileWait2Write = await file.open();
     var totalSize = _fileWait2Write.lengthSync();
     _blockNum = 0;
@@ -176,8 +172,8 @@ class TFtpServerSocket {
           [_blockNum >> 8, _blockNum & 255],
           dataBlock
         ].expand((x) => x).toList();
-        await _send(sendSocket, sendPacket, onReceiveProgress, totalSize,
-            sendCompleter);
+        await _send(sendSocket, _blockNum, sendPacket, onReceiveProgress,
+            totalSize, sendCompleter);
         if (_blockNum * 512 == totalSize) {
           _blockNum++;
           _blockNum = _blockNum > 65535 ? 0 : _blockNum;
@@ -186,8 +182,8 @@ class TFtpServerSocket {
             [_blockNum >> 8, _blockNum & 255],
             []
           ].expand((x) => x).toList();
-          await _send(sendSocket, sendPacket, onReceiveProgress, totalSize,
-              sendCompleter);
+          await _send(sendSocket, _blockNum, sendPacket, onReceiveProgress,
+              totalSize, sendCompleter);
         }
       }
       completer.complete();
@@ -198,6 +194,7 @@ class TFtpServerSocket {
 
   Future _send(
       RawDatagramSocket sendSocket,
+      int blockNum,
       List<int> sendPacket,
       ProgressCallback onReceiveProgress,
       int totalSize,
@@ -208,7 +205,7 @@ class TFtpServerSocket {
       sendTime++;
       sendSocket.send(sendPacket, remoteAddress, remotePort);
       if (null != onReceiveProgress) {
-        var processed = _blockNum * 512;
+        var processed = blockNum * 512;
         processed = processed > totalSize ? totalSize : processed;
         onReceiveProgress(processed, totalSize);
       }
@@ -217,7 +214,7 @@ class TFtpServerSocket {
         Duration(seconds: 1),
         onTimeout: () => null,
       );
-    } while (ack != _blockNum || sendTime > 5);
+    } while (ack != blockNum || sendTime > 5);
   }
 
   void close() {}
