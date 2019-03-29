@@ -112,6 +112,7 @@ class TFtpServerSocket {
         this._write(File(fileName), onReceiveProgress: onReceive);
         break;
       case OpCode.WRQ_VALUE:
+        if (null != onWrite) {}
         List<int> sendPacket = [
           [0, OpCode.ACK_VALUE],
           [0x00, 0x00],
@@ -148,14 +149,14 @@ class TFtpServerSocket {
     var totalSize = _fileWait2Write.lengthSync();
     _blockNum = 0;
 
-    Completer<int> sendCompleter;
+    SendCompleter sendCompleter = SendCompleter();
     sendSocket.listen((ev) async {
       if (RawSocketEvent.read == ev) {
         var data = sendSocket.receive();
         if (data.data[0] << 8 | data.data[1] == OpCode.ACK_VALUE) {
           var ackValue = data.data[2] << 8 | data.data[3];
           if (null != sendCompleter) {
-            sendCompleter.complete(ackValue);
+            sendCompleter.completer.complete(ackValue);
           }
         }
       }
@@ -198,7 +199,7 @@ class TFtpServerSocket {
       List<int> sendPacket,
       ProgressCallback onReceiveProgress,
       int totalSize,
-      Completer<int> sendCompleter) async {
+      SendCompleter sendCompleter) async {
     int ack;
     int sendTime = 0;
     do {
@@ -206,15 +207,16 @@ class TFtpServerSocket {
       sendSocket.send(sendPacket, remoteAddress, remotePort);
       if (null != onReceiveProgress) {
         var processed = blockNum * 512;
+        processed = processed == totalSize ? processed - 1 : processed;
         processed = processed > totalSize ? totalSize : processed;
         onReceiveProgress(processed, totalSize);
       }
-      sendCompleter = Completer();
-      ack = await sendCompleter.future.timeout(
+      sendCompleter.completer = Completer();
+      ack = await sendCompleter.completer.future.timeout(
         Duration(seconds: 1),
         onTimeout: () => null,
       );
-    } while (ack != blockNum || sendTime > 5);
+    } while (ack != blockNum && sendTime < 5);
   }
 
   void close() {}
@@ -239,6 +241,10 @@ class TFtpServerSocket {
     this.onRead = onRead;
     this.onWrite = onWrite;
   }
+}
+
+class SendCompleter {
+  Completer<int> completer;
 }
 
 enum WorkType { IDLE, READ, WRITE }

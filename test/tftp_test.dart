@@ -9,6 +9,7 @@ void main() {
           print("$count/$total");
         });
         return file;
+      },onWrite: (file,onWriteFile){
       });
     });
   });
