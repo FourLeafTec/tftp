@@ -116,34 +116,33 @@ class TFtpServerSocket {
             onReceive = progressCallback;
           });
         }
-        this.write(File(fileName), onReceiveProgress: onReceive);
+        this._write(File(fileName), onReceiveProgress: onReceive);
         break;
       case OpCode.WRQ_VALUE:
         // 反ACK
-        // todo: TO IMPLEMENT
         break;
       case OpCode.ACK_VALUE:
-//        _controller.addError("Ack should be receive to send data socket only.");
+        throwError(Error.ILLEGAL_OPERATION);
         break;
       case OpCode.DATA_VALUE:
         // 如果有WRQ做前置,写入文件,写文件完成后向下发写文件信息
         // todo: TO IMPLEMENT
         break;
       case OpCode.ERROR_VALUE:
-//        _controller.addError('Error[]');
+        _getError(1, "");
         break;
       default:
-//        _controller.addError("Unknown Operator");
+        throwError(Error.ILLEGAL_OPERATION);
         break;
     }
     return null;
   }
 
   /// 客户端读取文件时用于写入文件内容
-  Future write(File file, {ProgressCallback onReceiveProgress}) async {
+  Future _write(File file, {ProgressCallback onReceiveProgress}) async {
     Completer completer = Completer();
     if (_workType != WorkType.READ) {
-//      _controller.addError("Error Work Type");
+      throwError(Error.ILLEGAL_OPERATION);
       return completer.complete();
     }
 
@@ -177,21 +176,19 @@ class TFtpServerSocket {
           [_blockNum >> 8, _blockNum & 255],
           dataBlock
         ].expand((x) => x).toList();
-
-        int ack;
-        int sendTime = 0;
-        do {
-          sendTime++;
-          sendSocket.send(sendPacket, remoteAddress, remotePort);
-          if (null != onReceiveProgress) {
-            onReceiveProgress(_blockNum * 512, totalSize);
-          }
-          sendCompleter = Completer();
-          ack = await sendCompleter.future.timeout(
-            Duration(seconds: 1),
-            onTimeout: () => null,
-          );
-        } while (ack != _blockNum || sendTime > 5);
+        await _send(sendSocket, sendPacket, onReceiveProgress, totalSize,
+            sendCompleter);
+        if (_blockNum * 512 == totalSize) {
+          _blockNum++;
+          _blockNum = _blockNum > 65535 ? 0 : _blockNum;
+          List<int> sendPacket = [
+            [0, OpCode.DATA_VALUE],
+            [_blockNum >> 8, _blockNum & 255],
+            []
+          ].expand((x) => x).toList();
+          await _send(sendSocket, sendPacket, onReceiveProgress, totalSize,
+              sendCompleter);
+        }
       }
       completer.complete();
     });
@@ -199,9 +196,39 @@ class TFtpServerSocket {
     return completer.future;
   }
 
+  Future _send(
+      RawDatagramSocket sendSocket,
+      List<int> sendPacket,
+      ProgressCallback onReceiveProgress,
+      int totalSize,
+      Completer<int> sendCompleter) async {
+    int ack;
+    int sendTime = 0;
+    do {
+      sendTime++;
+      sendSocket.send(sendPacket, remoteAddress, remotePort);
+      if (null != onReceiveProgress) {
+        var processed = _blockNum * 512;
+        processed = processed > totalSize ? totalSize : processed;
+        onReceiveProgress(processed, totalSize);
+      }
+      sendCompleter = Completer();
+      ack = await sendCompleter.future.timeout(
+        Duration(seconds: 1),
+        onTimeout: () => null,
+      );
+    } while (ack != _blockNum || sendTime > 5);
+  }
+
   void close() {}
 
   void throwError(int code) {
+    if (null != onError) {
+      onError(code, errorDic[code]);
+    }
+  }
+
+  void _getError(int code, String message) {
     if (null != onError) {
       onError(code, errorDic[code]);
     }
