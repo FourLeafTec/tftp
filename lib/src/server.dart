@@ -252,7 +252,6 @@ class TFtpServerSocket {
           List<int> sendPacket = [
             [0, OpCode.DATA_VALUE],
             [_blockNum >> 8, _blockNum & 0xff],
-            []
           ].expand((x) => x).toList();
           await _send(sendSocket, _blockNum, sendPacket, onReceiveProgress,
               totalSize, sendCompleter);
