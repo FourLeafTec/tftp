@@ -1,14 +1,15 @@
 import 'dart:async';
 import 'dart:collection';
+import 'dart:convert' show Utf8Encoder;
 import 'dart:io';
 import 'dart:math';
 
 import 'package:tftp/tftp.dart';
 
 typedef ReadFileCallBack = String Function(
-    String file, void Function(ProgressCallback progressCallback) onProgress);
-typedef WriteFileCallBack = String Function(
-    String file, void Function(StreamTransformer transformer) doTansform);
+    String file, void Function({ProgressCallback progressCallback}) onProgress);
+typedef WriteFileCallBack = String Function(String file,
+    void Function({bool overwrite, StreamTransformer transformer}) doTransform);
 typedef ErrorCallBack = void Function(int code, String message);
 
 typedef ProgressCallback = void Function(int count, int total);
@@ -89,36 +90,48 @@ class TFtpServerSocket {
         print("read server file:${info.fileName} with ${info.transType}");
         ProgressCallback onReceive;
         if (null != onRead) {
-          info.fileName = onRead(info.fileName, (progressCallback) {
+          info.fileName = onRead(info.fileName, ({progressCallback}) {
             onReceive = progressCallback;
           });
         }
-        this._write(File(info.fileName), onReceiveProgress: onReceive);
-        break;
+        var file = File(info.fileName);
+        if (!file.existsSync()) {
+          throwError(Error.FILE_NOT_FOUND);
+          return;
+        }
+        this._write(file, onReceiveProgress: onReceive);
+        return;
       case OpCode.WRQ_VALUE:
         var info = _readFileNameAndTransType(data);
         print("write server file:${info.fileName} with ${info.transType}");
 
         if (null != _writeStreamCtrl) {
-          _writeStreamCtrl.close();
-        }
-        if (null != _writeSink) {
-          _writeSink.close();
+          _writeStreamCtrl.close().then((_) {
+            if (null != _writeSink) {
+              _writeSink.close();
+              _writeSink = null;
+            }
+          });
         }
         if (null != _writeFile) {
           _writeFile.deleteSync();
         }
 
         _writeFile = File(info.fileName);
-        _writeSink = _writeFile.openWrite(mode: FileMode.append);
-        _writeStreamCtrl = StreamController(sync: true);
         if (null != onWrite) {
-          info.fileName = onWrite(info.fileName, (transformer) {
+          info.fileName =
+              onWrite(info.fileName, ({overwrite = true, transformer}) {
+            if (!overwrite && _writeFile.existsSync()) {
+              throwError(Error.FILE_ALREADY_EXISTS);
+              return;
+            }
             if (null != transformer) {
               _writeStreamCtrl.stream.transform(transformer);
             }
           });
         }
+        _writeStreamCtrl = StreamController(sync: true);
+        _writeSink = _writeFile.openWrite();
         _writeSink.addStream(_writeStreamCtrl.stream);
 
         List<int> sendPacket = [
@@ -126,14 +139,14 @@ class TFtpServerSocket {
           [0x00, 0x00],
         ].expand((x) => x).toList();
         socket.send(sendPacket, remoteAddress, remotePort);
-        break;
+        return;
       case OpCode.ACK_VALUE:
         throwError(Error.ILLEGAL_OPERATION);
-        break;
+        return;
       case OpCode.DATA_VALUE:
         if (null == _writeFile) {
           throwError(Error.ILLEGAL_OPERATION);
-          break;
+          return;
         }
         var d = data.sublist(4);
         _writeStreamCtrl.add(d);
@@ -142,16 +155,31 @@ class TFtpServerSocket {
           [data[2], data[3]],
         ].expand((x) => x).toList();
         socket.send(sendPacket, remoteAddress, remotePort);
-        break;
+        if (d.length < blockSize) {
+          _writeStreamCtrl.close().then((_) {
+            _writeSink.close();
+            _writeSink = null;
+          });
+          _writeStreamCtrl = null;
+          _writeFile = null;
+        }
+        return;
       case OpCode.ERROR_VALUE:
-        // todo error message from data
-        _getError(1," error message from data");
-        break;
+        var code = data[2] << 8 | data[3];
+        List<int> msgData = [];
+        for (int i = 4; i < data.length; ++i) {
+          if (0 == data[i]) {
+            break;
+          }
+          msgData.add(data[i]);
+        }
+        var msg = String.fromCharCodes(msgData);
+        _getError(code, msg);
+        return;
       default:
         throwError(Error.ILLEGAL_OPERATION);
-        break;
+        return;
     }
-    return null;
   }
 
   TransInfo _readFileNameAndTransType(List<int> data) {
@@ -213,7 +241,7 @@ class TFtpServerSocket {
 
         List<int> sendPacket = [
           [0, OpCode.DATA_VALUE],
-          [_blockNum >> 8, _blockNum & 255],
+          [_blockNum >> 8, _blockNum & 0xff],
           dataBlock
         ].expand((x) => x).toList();
         await _send(sendSocket, _blockNum, sendPacket, onReceiveProgress,
@@ -223,7 +251,7 @@ class TFtpServerSocket {
           _blockNum = _blockNum > 65535 ? 0 : _blockNum;
           List<int> sendPacket = [
             [0, OpCode.DATA_VALUE],
-            [_blockNum >> 8, _blockNum & 255],
+            [_blockNum >> 8, _blockNum & 0xff],
             []
           ].expand((x) => x).toList();
           await _send(sendSocket, _blockNum, sendPacket, onReceiveProgress,
@@ -268,11 +296,18 @@ class TFtpServerSocket {
     if (null != onError) {
       onError(code, errorDic[code]);
     }
+    List<int> sendPacket = [
+      [0, OpCode.ERROR_VALUE],
+      [code >> 8, code & 0xff],
+      Utf8Encoder().convert(errorDic[code]),
+    ].expand((x) => x).toList();
+
+    socket.send(sendPacket, remoteAddress, remotePort);
   }
 
-  void _getError(int code,String message) {
+  void _getError(int code, String message) {
     if (null != onError) {
-      onError(code, errorDic[code]);
+      onError(code, message);
     }
   }
 
