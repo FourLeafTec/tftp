@@ -1,3 +1,19 @@
+import 'dart:convert';
+
+typedef ProgressCallback = void Function(int count, int total);
+typedef ErrorCallBack = void Function(int code, String message);
+
+class TFtpException implements Exception {
+  final int code;
+  final String message;
+
+  TFtpException(this.code, this.message);
+
+  String toString() {
+    return "TFtp Error[$code]: $message";
+  }
+}
+
 Map<int, String> errorDic = {
   Error.NOT_DEFINED: 'Not defined, see error message(if any)',
   Error.FILE_NOT_FOUND: 'File not found',
@@ -38,4 +54,16 @@ class OpCode {
   const OpCode._(this._value);
 
   int get val => _value;
+}
+
+Utf8Encoder get encoder => const Utf8Encoder();
+
+class TransType {
+  static List<int> netascii = encoder.convert("netascii");
+  static List<int> octet = encoder.convert("octet");
+}
+
+class TransInfo {
+  String fileName;
+  String transType;
 }

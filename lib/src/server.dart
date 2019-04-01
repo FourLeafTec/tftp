@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:collection';
-import 'dart:convert' show Utf8Encoder;
 import 'dart:io';
 import 'dart:math';
 
@@ -10,18 +9,15 @@ typedef ReadFileCallBack = String Function(
     String file, void Function({ProgressCallback progressCallback}) onProgress);
 typedef WriteFileCallBack = String Function(String file,
     void Function({bool overwrite, StreamTransformer transformer}) doTransform);
-typedef ErrorCallBack = void Function(int code, String message);
-
-typedef ProgressCallback = void Function(int count, int total);
 
 class TFtpServer extends Stream<TFtpServerSocket> {
-  TFtpServer(this.address, this.port) {
+  TFtpServer(this.address, {this.port = 69}) {
     _controller = StreamController<TFtpServerSocket>(sync: true);
     RawDatagramSocket.bind(address, port).then(_init, onError: _initError);
   }
 
-  static Future<TFtpServer> bind(address, int port) async {
-    return new Future(() => TFtpServer(address, port));
+  static Future<TFtpServer> bind(address, {int port = 69}) async {
+    return new Future(() => TFtpServer(address, port: port));
   }
 
   HashMap<String, TFtpServerSocket> _socketDic = new HashMap();
@@ -298,7 +294,7 @@ class TFtpServerSocket {
     List<int> sendPacket = [
       [0, OpCode.ERROR_VALUE],
       [code >> 8, code & 0xff],
-      Utf8Encoder().convert(errorDic[code]),
+      encoder.convert(errorDic[code]),
     ].expand((x) => x).toList();
 
     socket.send(sendPacket, remoteAddress, remotePort);
@@ -318,11 +314,6 @@ class TFtpServerSocket {
     this.onRead = onRead;
     this.onWrite = onWrite;
   }
-}
-
-class TransInfo {
-  String fileName;
-  String transType;
 }
 
 class SendCompleter {
