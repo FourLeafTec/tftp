@@ -85,7 +85,8 @@ class TFtpClient {
               [0, OpCode.ACK_VALUE],
               [data.data[2], data.data[3]],
             ].expand((x) => x).toList();
-            _socket.send(sendPacket, InternetAddress(remoteAddress), remotePort);
+            _socket.send(
+                sendPacket, InternetAddress(remoteAddress), remotePort);
             return;
           }
           _receivedBlock.add(blockSeq);

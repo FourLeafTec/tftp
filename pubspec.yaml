@@ -1,7 +1,7 @@
 name: tftp
-description: A tftp lib.
+description: A lib for Trivial File Transfer Protocol(TFtp) server and client.
 version: 1.0.0
-author: Four Leaf <gundamwing.wei@gmail.com>
+author: FourLeaf <gundamwing.wei@gmail.com>
 homepage: https://github.com/FourLeafTec/tftp
 
 environment:
