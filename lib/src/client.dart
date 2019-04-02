@@ -35,7 +35,8 @@ class TFtpClient {
       [0],
     ].expand((x) => x).toList();
     var _blockNum = 0;
-    var _rp = await _sendPacket(sendPacket, _blockNum, remoteAddress, remotePort);
+    var _rp =
+        await _sendPacket(sendPacket, _blockNum, remoteAddress, remotePort);
 
     RandomAccessFile _fileWait2Write = await File(localFile).open();
     var totalSize = _fileWait2Write.lengthSync();
@@ -63,21 +64,53 @@ class TFtpClient {
     }
   }
 
-  void get(
+  Future get(
       String localFile, String remoteFile, String remoteAddress, int remotePort,
       {ErrorCallBack onError}) async {
+    Completer<int> completer = Completer();
+
+    var file = File(localFile);
+    var io = file.openWrite();
+    StreamSubscription subscription;
+    subscription = _stream.listen((ev) {
+      if (RawSocketEvent.read == ev) {
+        var data = _socket.receive();
+        var port = data.port;
+        if (data.data[1] == OpCode.DATA_VALUE) {
+          List<int> d = data.data.sublist(4);
+          if (d.length > 0) {
+            io.add(d);
+          }
+          List<int> sendPacket = [
+            [0, OpCode.ACK_VALUE],
+            [data.data[2], data.data[3]],
+          ].expand((x) => x).toList();
+          _socket.send(sendPacket, InternetAddress(remoteAddress), port);
+
+          if (d.length < blockSize) {
+            io.close();
+            subscription.cancel();
+            completer.complete();
+          }
+        }
+        _checkError(data.data);
+      }
+    });
+
     List<int> sendPacket = [
       [0, OpCode.RRQ_VALUE],
-      encoder.convert(localFile),
+      encoder.convert(remoteFile),
       [0],
       TransType.octet,
       [0],
     ].expand((x) => x).toList();
-    await _sendPacket(sendPacket, 0, remoteAddress, remotePort);
+    _socket.send(sendPacket, InternetAddress(remoteAddress), remotePort);
+
+    return completer.future;
   }
 
-  Future<int> _sendPacket(List<int> sendPacket, int blockSeq, String remoteAddress,
-      int remotePort) async {
+  Future<int> _sendPacket(List<int> sendPacket, int blockSeq,
+      String remoteAddress, int remotePort) async {
     Completer<int> completer = Completer();
     StreamSubscription subscription;
     subscription = _stream.listen((ev) {
@@ -92,10 +125,7 @@ class TFtpClient {
       }
     });
     _socket.send(sendPacket, InternetAddress(remoteAddress), remotePort);
-    return completer.future.timeout(Duration(seconds: 5), onTimeout: () {
-      subscription.cancel();
-      completer.completeError("time out.");
-    });
+    return completer.future;
   }
 
   bool _checkAck(int blockSeq, List<int> data) {
@@ -122,7 +152,8 @@ class TFtpClient {
       throw new TFtpException(code, msg);
     }
   }
-  void close(){
+
+  void close() {
     _socket.close();
   }
 }
