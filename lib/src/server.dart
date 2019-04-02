@@ -78,6 +78,7 @@ class TFtpServerSocket {
   File _writeFile;
   IOSink _writeSink;
   StreamController<List<int>> _writeStreamCtrl;
+  List<int> _receivedBlock = List();
 
   void read(List<int> data) {
     switch (data[0] << 8 | data[1]) {
@@ -139,6 +140,7 @@ class TFtpServerSocket {
         _writeSink = _writeFile.openWrite();
         _writeSink.addStream(_writeStreamCtrl.stream);
 
+        _receivedBlock = List();
         List<int> sendPacket = [
           [0, OpCode.ACK_VALUE],
           [0x00, 0x00],
@@ -152,6 +154,14 @@ class TFtpServerSocket {
         if (null == _writeFile) {
           throwError(Error.ILLEGAL_OPERATION);
           return;
+        }
+        var blockSeq = (data[2] << 8) + data[3];
+        if (_receivedBlock.contains(blockSeq)) {
+          return;
+        }
+        _receivedBlock.add(blockSeq);
+        if (_receivedBlock.length > 20) {
+          _receivedBlock.removeAt(0);
         }
         var d = data.sublist(4);
         _writeStreamCtrl.add(d);
