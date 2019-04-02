@@ -1,8 +1,8 @@
 name: tftp
 description: A tftp lib.
-version: 0.0.1
-author:
-homepage:
+version: 1.0.0
+author: Four Leaf <gundamwing.wei@gmail.com>
+homepage: https://github.com/FourLeafTec/tftp
 
 environment:
   sdk: ">=2.1.0 <3.0.0"

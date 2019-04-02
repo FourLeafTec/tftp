@@ -1,3 +1,3 @@
-## [0.0.1] - TODO: Add release date.
+## [1.0.0] - Release tftp server and tftp client.
 
-* TODO: Describe initial release.
+* Release a simple tftp server and tftp client
