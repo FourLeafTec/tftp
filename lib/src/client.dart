@@ -11,6 +11,8 @@ class TFtpClient {
   RawDatagramSocket _socket;
   Stream<RawSocketEvent> _stream;
 
+  List<int> _receivedBlock = List();
+
   TFtpClient(this.host, this.port, {this.blockSize = 512});
 
   static Future<TFtpClient> bind(String host, int port, {int blockSize = 512}) {
@@ -77,6 +79,20 @@ class TFtpClient {
         var data = _socket.receive();
         var port = data.port;
         if (data.data[1] == OpCode.DATA_VALUE) {
+          var blockSeq = (data.data[2] << 8) + data.data[3];
+          if (_receivedBlock.contains(blockSeq)) {
+            List<int> sendPacket = [
+              [0, OpCode.ACK_VALUE],
+              [data.data[2], data.data[3]],
+            ].expand((x) => x).toList();
+            _socket.send(sendPacket, InternetAddress(remoteAddress), remotePort);
+            return;
+          }
+          _receivedBlock.add(blockSeq);
+          if (_receivedBlock.length > 20) {
+            _receivedBlock.removeAt(0);
+          }
+
           List<int> d = data.data.sublist(4);
           if (d.length > 0) {
             io.add(d);
@@ -104,6 +120,7 @@ class TFtpClient {
       TransType.octet,
       [0],
     ].expand((x) => x).toList();
+    _receivedBlock = List();
     _socket.send(sendPacket, InternetAddress(remoteAddress), remotePort);
 
     return completer.future;

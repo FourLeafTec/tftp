@@ -83,7 +83,7 @@ class _ServerDemoState extends State<ServerDemo> {
                   ? Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        Text("Process:${snapshot.data * 100}%"),
+                        Text("Process:${(snapshot.data * 100).toStringAsFixed(2)}%"),
                         LinearProgressIndicator(
                           value: snapshot.data,
                         ),
