@@ -157,6 +157,11 @@ class TFtpServerSocket {
         }
         var blockSeq = (data[2] << 8) + data[3];
         if (_receivedBlock.contains(blockSeq)) {
+          List<int> sendPacket = [
+            [0, OpCode.ACK_VALUE],
+            [data[2], data[3]],
+          ].expand((x) => x).toList();
+          socket.send(sendPacket, remoteAddress, remotePort);
           return;
         }
         _receivedBlock.add(blockSeq);
