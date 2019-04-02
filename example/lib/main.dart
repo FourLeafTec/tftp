@@ -1,3 +1,5 @@
+import 'package:example/client.dart';
+import 'package:example/server.dart';
 import 'package:flutter/material.dart';
 
 void main() => runApp(MyApp());
@@ -25,13 +27,20 @@ class MyHomePage extends StatefulWidget {
   _MyHomePageState createState() => _MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _MyHomePageState extends State<MyHomePage>
+    with SingleTickerProviderStateMixin {
+  TabController controller;
 
-  void _incrementCounter() {
-    setState(() {
-      _counter++;
-    });
+  @override
+  void initState() {
+    super.initState();
+    controller = new TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
   }
 
   @override
@@ -39,26 +48,23 @@ class _MyHomePageState extends State<MyHomePage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.display1,
-            ),
+        bottom: TabBar(
+          controller: controller,
+          tabs: [
+            Tab(icon: Icon(Icons.wb_cloudy), child: Text("Server")),
+            Tab(icon: Icon(Icons.phonelink_ring), child: Text("Client"))
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+      body: Center(
+        child: TabBarView(
+          controller: controller,
+          children: [
+            ServerDemo(),
+            ClientDemo(),
+          ],
+        ),
+      ),
     );
   }
 }
