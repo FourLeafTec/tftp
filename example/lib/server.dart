@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:tftp/tftp.dart';
 
 class ServerDemo extends StatefulWidget {
@@ -35,24 +37,33 @@ class _ServerDemoState extends State<ServerDemo> {
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: <Widget>[
           StreamBuilder<String>(
+            stream: infoController.stream,
             builder: (context, snapshot) {
               return snapshot.hasData ? Text(snapshot.data) : Container();
             },
           ),
           RaisedButton(
             onPressed: () async {
-              server = await TFtpServer.bind("127.0.0.1", port: 6699);
+              Directory appDocDir = await getApplicationDocumentsDirectory();
+              String appDocPath = appDocDir.path;
+
+              server = await TFtpServer.bind("0.0.0.0", port: 6699);
               server.listen((socket) {
                 socket.listen(onRead: (file, onProcess) {
                   infoController.add("read file from server:$file");
                   onProcess(progressCallback: (count, total) {
                     processController.add(count / total);
                   });
-                  return file;
+                  return "$appDocPath/$file";
                 }, onWrite: (file, doTransform) {
+                  doTransform();
                   infoController.add("write file to server:$file");
+                  return "$appDocPath/$file";
+                }, onError: (code, msg) {
+                  infoController.add("Error[$code]:$msg");
                 });
               });
+              infoController.add("Server start.");
             },
             child: Text("Start"),
           ),
@@ -60,6 +71,7 @@ class _ServerDemoState extends State<ServerDemo> {
             onPressed: () {
               if (null != this.server) {
                 this.server.close();
+                infoController.add("Server stop.");
               }
             },
             child: Text("Stop"),

@@ -113,18 +113,27 @@ class TFtpServerSocket {
           _writeFile.deleteSync();
         }
 
-        _writeFile = File(info.fileName);
+        bool _overwrite;
         if (null != onWrite) {
           info.fileName =
               onWrite(info.fileName, ({overwrite = true, transformer}) {
-            if (!overwrite && _writeFile.existsSync()) {
-              throwError(Error.FILE_ALREADY_EXISTS);
-              return;
-            }
+            _overwrite = overwrite;
             if (null != transformer) {
               _writeStreamCtrl.stream.transform(transformer);
             }
           });
+        }
+        _writeFile = File(info.fileName);
+
+        if (!_overwrite && _writeFile.existsSync()) {
+          throwError(Error.FILE_ALREADY_EXISTS);
+          return;
+        }
+        try {
+          _writeFile.createSync();
+        } catch (e) {
+          throwError(Error.ACCESS_VIOLATION);
+          return;
         }
         _writeStreamCtrl = StreamController(sync: true);
         _writeSink = _writeFile.openWrite();
@@ -301,7 +310,7 @@ class TFtpServerSocket {
   }
 
   void _getError(int code, String message) {
-    if (null != onError) {
+    if (null != onError && code != 0) {
       onError(code, message);
     }
   }
@@ -313,6 +322,7 @@ class TFtpServerSocket {
   }) {
     this.onRead = onRead;
     this.onWrite = onWrite;
+    this.onError = onError;
   }
 }
 
