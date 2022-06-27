@@ -64,6 +64,8 @@ class TransType {
 }
 
 class TransInfo {
+  TransInfo(this.fileName, this.transType);
+
   String fileName;
   String transType;
 }

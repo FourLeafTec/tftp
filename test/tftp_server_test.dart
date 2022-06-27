@@ -10,6 +10,7 @@ void main() {
         return file;
       }, onWrite: (file, doTransform) {
         doTransform(overwrite: false);
+        return file;
       });
     });
   });

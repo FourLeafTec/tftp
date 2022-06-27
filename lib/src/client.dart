@@ -8,10 +8,10 @@ class TFtpClient {
   final int port;
   final int blockSize;
 
-  RawDatagramSocket _socket;
-  Stream<RawSocketEvent> _stream;
+  late RawDatagramSocket _socket;
+  late Stream<RawSocketEvent> _stream;
 
-  List<int> _receivedBlock = List();
+  List<int> _receivedBlock = List.empty();
 
   TFtpClient(this.host, this.port, {this.blockSize = 512});
 
@@ -28,7 +28,7 @@ class TFtpClient {
 
   Future put(
       String localFile, String remoteFile, String remoteAddress, int remotePort,
-      {ProgressCallback progressCallback, ErrorCallBack onError}) async {
+      {ProgressCallback? progressCallback, ErrorCallBack? onError}) async {
     List<int> sendPacket = [
       [0, OpCode.WRQ_VALUE],
       encoder.convert(remoteFile),
@@ -68,16 +68,16 @@ class TFtpClient {
 
   Future get(
       String localFile, String remoteFile, String remoteAddress, int remotePort,
-      {ErrorCallBack onError}) async {
+      {ErrorCallBack? onError}) async {
     Completer<int> completer = Completer();
 
     var file = File(localFile);
     var io = file.openWrite();
-    StreamSubscription subscription;
+    late StreamSubscription subscription;
     subscription = _stream.listen((ev) {
       if (RawSocketEvent.read == ev) {
         var data = _socket.receive();
-        var port = data.port;
+        var port = data!.port;
         if (data.data[1] == OpCode.DATA_VALUE) {
           var blockSeq = (data.data[2] << 8) + data.data[3];
           if (_receivedBlock.contains(blockSeq)) {
@@ -121,7 +121,7 @@ class TFtpClient {
       TransType.octet,
       [0],
     ].expand((x) => x).toList();
-    _receivedBlock = List();
+    _receivedBlock = List.empty();
     _socket.send(sendPacket, InternetAddress(remoteAddress), remotePort);
 
     return completer.future;
@@ -130,11 +130,11 @@ class TFtpClient {
   Future<int> _sendPacket(List<int> sendPacket, int blockSeq,
       String remoteAddress, int remotePort) async {
     Completer<int> completer = Completer();
-    StreamSubscription subscription;
+    late StreamSubscription subscription;
     subscription = _stream.listen((ev) {
       if (RawSocketEvent.read == ev) {
         var data = _socket.receive();
-        if (_checkAck(blockSeq, data.data)) {
+        if (_checkAck(blockSeq, data!.data)) {
           subscription.cancel();
           completer.complete(data.port);
           return;
