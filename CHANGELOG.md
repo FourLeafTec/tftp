@@ -7,3 +7,8 @@
 * fix bug.
 * format code.
 * fix document.
+
+## [1.1.0] - support null safe.
+
+* support null safe.
+* add analysis.
