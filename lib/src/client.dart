@@ -18,7 +18,7 @@ class TFtpClient {
   static Future<TFtpClient> bind(String host, int port, {int blockSize = 512}) {
     Completer<TFtpClient> completer = Completer();
     RawDatagramSocket.bind(host, port).then((socket) {
-      var client = new TFtpClient(host, port, blockSize: blockSize);
+      var client = TFtpClient(host, port, blockSize: blockSize);
       client._socket = socket;
       client._stream = socket.asBroadcastStream();
       completer.complete(client);
@@ -43,7 +43,7 @@ class TFtpClient {
     RandomAccessFile _fileWait2Write = await File(localFile).open();
     var totalSize = _fileWait2Write.lengthSync();
     List<int> dataBlock;
-    while ((dataBlock = await _fileWait2Write.read(blockSize)).length > 0) {
+    while ((dataBlock = await _fileWait2Write.read(blockSize)).isNotEmpty) {
       ++_blockNum;
       _blockNum = _blockNum > 65535 ? 0 : _blockNum;
 
@@ -95,7 +95,7 @@ class TFtpClient {
           }
 
           List<int> d = data.data.sublist(4);
-          if (d.length > 0) {
+          if (d.isNotEmpty) {
             io.add(d);
           }
           List<int> sendPacket = [
@@ -107,7 +107,8 @@ class TFtpClient {
           if (d.length < blockSize) {
             io.close();
             subscription.cancel();
-            completer.complete();
+            // TODO complete return value should be more meaningful
+            completer.complete(1);
           }
         }
         _checkError(data.data);
@@ -167,7 +168,7 @@ class TFtpClient {
         msgData.add(data[i]);
       }
       var msg = String.fromCharCodes(msgData);
-      throw new TFtpException(code, msg);
+      throw TFtpException(code, msg);
     }
   }
 

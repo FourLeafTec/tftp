@@ -51,7 +51,7 @@ class TFtpServer extends Stream<TFtpServerSocket> {
     close();
   }
 
-  Future close({bool force: false}) {
+  Future close({bool force = false}) {
     return _controller.close();
   }
 
@@ -207,7 +207,8 @@ class TFtpServerSocket {
   }
 
   TransInfo _readFileNameAndTransType(List<int> data) {
-    List<List<int>> packetData = List.generate(2, (index) => List.empty());
+    List<List<int>> packetData =
+        List.generate(2, (index) => List.empty(), growable: true);
 
     int pos = -1;
     for (int val in data) {
@@ -244,16 +245,14 @@ class TFtpServerSocket {
         var data = sendSocket.receive();
         if (data!.data[0] << 8 | data.data[1] == OpCode.ACK_VALUE) {
           var ackValue = data.data[2] << 8 | data.data[3];
-          if (null != sendCompleter) {
-            sendCompleter.completer!.complete(ackValue);
-          }
+          sendCompleter.completer!.complete(ackValue);
         }
       }
     });
 
     Future.microtask(() async {
       List<int> dataBlock;
-      while ((dataBlock = await _fileWait2Write.read(blockSize)).length > 0) {
+      while ((dataBlock = await _fileWait2Write.read(blockSize)).isNotEmpty) {
         _blockNum++;
         _blockNum = _blockNum > 65535 ? 0 : _blockNum;
 
@@ -301,7 +300,7 @@ class TFtpServerSocket {
       }
       sendCompleter.completer = Completer();
       ack = await sendCompleter.completer!.future.timeout(
-        Duration(seconds: 1),
+        const Duration(seconds: 1),
       );
     } while (ack != blockNum && sendTime < 5);
   }
