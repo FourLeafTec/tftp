@@ -12,3 +12,8 @@
 
 * support null safe.
 * add analysis.
+
+## [1.2.0] - upgrade sdk>=3.3.0
+
+* upgrade sdk
+* fix byte list with growable=true
