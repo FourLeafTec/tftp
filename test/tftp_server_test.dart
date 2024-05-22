@@ -25,5 +25,5 @@ void main() async {
   }, onDone: () {
     print("Server done");
   });
-  Future.delayed(const Duration(seconds: 30),()=>server.close());
+  Future.delayed(const Duration(seconds: 30), () => server.close());
 }

@@ -47,7 +47,7 @@ class _MyHomePageState extends State<MyHomePage>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.title??"TFtp Demo"),
+        title: Text(widget.title ?? "TFtp Demo"),
         bottom: TabBar(
           controller: controller,
           tabs: [

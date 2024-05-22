@@ -39,7 +39,7 @@ class _ServerDemoState extends State<ServerDemo> {
           StreamBuilder<String>(
             stream: infoController?.stream,
             builder: (context, snapshot) {
-              return snapshot.hasData ? Text(snapshot.data??'') : Container();
+              return snapshot.hasData ? Text(snapshot.data ?? '') : Container();
             },
           ),
           TextButton(
@@ -83,7 +83,8 @@ class _ServerDemoState extends State<ServerDemo> {
                   ? Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        Text("Process:${(snapshot.data! * 100).toStringAsFixed(2)}%"),
+                        Text(
+                            "Process:${(snapshot.data! * 100).toStringAsFixed(2)}%"),
                         LinearProgressIndicator(
                           value: snapshot.data,
                         ),

@@ -22,3 +22,7 @@
 
 * allow use with out flutter
 * fix: close all client socket when server close
+
+## [1.2.2] - fix pubspec
+
+* fix pubspec and remove flutter
