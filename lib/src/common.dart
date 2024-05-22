@@ -1,13 +1,13 @@
 import 'dart:convert';
 
 /// Callback for progress
-/// 
+///
 /// [count] is the current bytes processed
 /// [total] is the total bytes to be processed
 typedef ProgressCallback = void Function(int count, int total);
 
 /// Callback for error
-/// 
+///
 /// [code] is the error code
 /// [message] is the error message
 typedef ErrorCallBack = void Function(int code, String message);

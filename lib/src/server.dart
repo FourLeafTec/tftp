@@ -85,7 +85,6 @@ class TFtpServer extends Stream<TFtpServerSocket> {
 ///
 /// The server create a socket for client to connect
 class TFtpServerSocket {
-
   TFtpServerSocket(this.socket, this.remoteAddress, this.remotePort,
       {this.blockSize = 512, this.onRead, this.onWrite, this.onError});
 

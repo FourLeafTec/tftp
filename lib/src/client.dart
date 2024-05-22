@@ -7,8 +7,10 @@ import './common.dart';
 class TFtpClient {
   /// Client host to listen
   final String host;
+
   /// Client port to listen
   final int port;
+
   /// Block size
   final int blockSize;
 
@@ -32,7 +34,7 @@ class TFtpClient {
   }
 
   /// Put file to remote server
-  /// 
+  ///
   /// [localFile] Local file path
   /// [remoteFile] Remote file path
   /// [remoteAddress] Remote server address
@@ -80,7 +82,7 @@ class TFtpClient {
   }
 
   /// Get file from remote server
-  /// 
+  ///
   /// [localFile] Local file path
   /// [remoteFile] Remote file path
   /// [remoteAddress] Remote server address
