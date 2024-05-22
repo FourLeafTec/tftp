@@ -26,3 +26,7 @@
 ## [1.2.2] - fix pubspec
 
 * fix pubspec and remove flutter
+
+## [1.2.3] - update package description
+
+* update package description

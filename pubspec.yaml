@@ -1,8 +1,10 @@
 name: tftp
-description: Libraries for creating TFTP servers and clients.
+description: |
+  A powerful TFTP package.
+  This library provides a comprehensive set of functions and structures to simplify the creation of robust TFTP servers and clients.
 topics:
   - tftp
-version: 1.2.2
+version: 1.2.3
 homepage: https://github.com/FourLeafTec/tftp
 
 environment:
