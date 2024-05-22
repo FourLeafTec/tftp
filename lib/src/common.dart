@@ -9,6 +9,7 @@ class TFtpException implements Exception {
 
   TFtpException(this.code, this.message);
 
+  @override
   String toString() {
     return "TFtp Error[$code]: $message";
   }
@@ -43,11 +44,11 @@ class OpCode {
   static const int ACK_VALUE = 4;
   static const int ERROR_VALUE = 5;
 
-  static const OpCode RRQ = const OpCode._(RRQ_VALUE);
-  static const OpCode WRQ = const OpCode._(WRQ_VALUE);
-  static const OpCode DATA = const OpCode._(DATA_VALUE);
-  static const OpCode ACK = const OpCode._(ACK_VALUE);
-  static const OpCode ERROR = const OpCode._(ERROR_VALUE);
+  static const OpCode RRQ = OpCode._(RRQ_VALUE);
+  static const OpCode WRQ = OpCode._(WRQ_VALUE);
+  static const OpCode DATA = OpCode._(DATA_VALUE);
+  static const OpCode ACK = OpCode._(ACK_VALUE);
+  static const OpCode ERROR = OpCode._(ERROR_VALUE);
 
   final int _value;
 
