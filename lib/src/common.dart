@@ -1,8 +1,18 @@
 import 'dart:convert';
 
+/// Callback for progress
+/// 
+/// [count] is the current bytes processed
+/// [total] is the total bytes to be processed
 typedef ProgressCallback = void Function(int count, int total);
+
+/// Callback for error
+/// 
+/// [code] is the error code
+/// [message] is the error message
 typedef ErrorCallBack = void Function(int code, String message);
 
+/// Exception for TFTP
 class TFtpException implements Exception {
   final int code;
   final String message;
@@ -11,10 +21,11 @@ class TFtpException implements Exception {
 
   @override
   String toString() {
-    return "TFtp Error[$code]: $message";
+    return "TFTP Error[$code]: $message";
   }
 }
 
+/// Error dictionary
 Map<int, String> errorDic = {
   Error.NOT_DEFINED: 'Not defined, see error message(if any)',
   Error.FILE_NOT_FOUND: 'File not found',
@@ -26,6 +37,7 @@ Map<int, String> errorDic = {
   Error.NO_SUCH_USER: 'No such user',
 };
 
+/// Error codes
 class Error {
   static const int NOT_DEFINED = 0; //Not defined, see error message(if any)
   static const int FILE_NOT_FOUND = 1; //File not found
@@ -37,6 +49,7 @@ class Error {
   static const int NO_SUCH_USER = 7; //No such user
 }
 
+/// TFTP OpCode
 class OpCode {
   static const int RRQ_VALUE = 1;
   static const int WRQ_VALUE = 2;

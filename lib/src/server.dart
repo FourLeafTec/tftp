@@ -5,15 +5,27 @@ import 'dart:math';
 
 import './common.dart';
 
+/// Callback for read event
+///
+/// file: the file path client want to read
+/// progressCallback: callback for progress, trigger when transfer file
+/// return: the true file path server read
 typedef ReadFileCallBack = String Function(String file,
     void Function({ProgressCallback? progressCallback}) onProgress);
+
+/// Callback for write event
+///
+/// file: the file path client want to write
+/// doTransform: callback for transform, trigger when transfer file
+/// return: the true file path server write
 typedef WriteFileCallBack = String Function(
     String file,
     void Function(
             {bool overwrite,
-            StreamTransformer<List<int>, dynamic>? transformer})
+            StreamTransformer<List<int>, List<int>>? transformer})
         doTransform);
 
+/// TFtpServer is a server for TFTP protocol
 class TFtpServer extends Stream<TFtpServerSocket> {
   TFtpServer(this.address, {this.port = 69}) {
     _controller = StreamController<TFtpServerSocket>(sync: true);
@@ -42,7 +54,7 @@ class TFtpServer extends Stream<TFtpServerSocket> {
           _socketDic[tid] = socket;
           _controller.add(socket);
         }
-        _socketDic[tid]?.read(datagram!.data);
+        _socketDic[tid]?._read(datagram!.data);
       }
     });
   }
@@ -52,6 +64,9 @@ class TFtpServer extends Stream<TFtpServerSocket> {
   }
 
   Future close({bool force = false}) {
+    _socketDic.forEach((key, socket) {
+      socket.close();
+    });
     return _controller.close();
   }
 
@@ -66,25 +81,47 @@ class TFtpServer extends Stream<TFtpServerSocket> {
   }
 }
 
+/// The socket for TFTP server
+///
+/// The server create a socket for client to connect
 class TFtpServerSocket {
+
   TFtpServerSocket(this.socket, this.remoteAddress, this.remotePort,
       {this.blockSize = 512, this.onRead, this.onWrite, this.onError});
 
+  /// The socket for client to connect
   RawDatagramSocket socket;
+
+  /// The remote address for client
   InternetAddress remoteAddress;
+
+  /// The remote port for client
   int remotePort;
+
+  /// The block size for transfer file
   int blockSize;
 
+  /// Callback for read event
   ReadFileCallBack? onRead;
+
+  /// Callback for write event
   WriteFileCallBack? onWrite;
+
+  /// Callback for error event
   ErrorCallBack? onError;
 
   late File? _writeFile;
   late IOSink? _writeSink;
   late StreamController<List<int>>? _writeStreamCtrl;
-  late List<int>? _receivedBlock = List.empty();
+  late List<int>? _receivedBlock = List.empty(growable: true);
 
-  void read(List<int> data) {
+  /// Read data from client
+  ///
+  /// data: the data from client
+  /// data format: [opcode, filename, 0, mode, 0]
+  /// opcode: 2 bytes, the operation code of TFTP, see [OpCode]
+  /// filename: the file name
+  void _read(List<int> data) {
     switch (data[0] << 8 | data[1]) {
       case OpCode.RRQ_VALUE:
         var info = _readFileNameAndTransType(data);
@@ -119,12 +156,13 @@ class TFtpServerSocket {
         }
 
         bool _overwrite = true;
+        var _stream = _writeStreamCtrl!.stream;
         if (null != onWrite) {
           info.fileName =
               onWrite!(info.fileName, ({overwrite = true, transformer}) {
             _overwrite = overwrite;
             if (null != transformer) {
-              _writeStreamCtrl?.stream.transform(transformer);
+              _stream = _writeStreamCtrl!.stream.transform(transformer);
             }
           });
         }
@@ -142,9 +180,9 @@ class TFtpServerSocket {
         }
         _writeStreamCtrl = StreamController(sync: true);
         _writeSink = _writeFile?.openWrite();
-        _writeSink?.addStream(_writeStreamCtrl!.stream);
+        _writeSink?.addStream(_stream);
 
-        _receivedBlock = List.empty();
+        _receivedBlock = List.empty(growable: true);
         List<int> sendPacket = [
           [0, OpCode.ACK_VALUE],
           [0x00, 0x00],
@@ -305,16 +343,25 @@ class TFtpServerSocket {
     } while (ack != blockNum && sendTime < 5);
   }
 
-  void close() {}
+  /// Close the socket
+  void close() {
+    socket.close();
+  }
 
-  void throwError(int code) {
+  /// Send error message to client
+  ///
+  /// [code] the error code, see [Error]
+  /// [message] the error message, default is the error message of [code], see [errorDic]
+  void throwError(int code, {String? message}) {
     if (null != onError) {
       onError!(code, errorDic[code]!);
     }
     List<int> sendPacket = [
       [0, OpCode.ERROR_VALUE],
       [code >> 8, code & 0xff],
-      encoder.convert(errorDic[code]!),
+      message != null
+          ? encoder.convert(message)
+          : encoder.convert(errorDic[code] ?? ''),
     ].expand((x) => x).toList();
 
     socket.send(sendPacket, remoteAddress, remotePort);
@@ -326,6 +373,13 @@ class TFtpServerSocket {
     }
   }
 
+  /// Listen for read and write events
+  ///
+  /// [onRead] callback for read event, trigger when client read file
+  ///
+  /// [onWrite] callback for write event, trigger when client write file
+  ///
+  /// [onError] callback for error event, trigger when error occurred
   void listen({
     ReadFileCallBack? onRead,
     WriteFileCallBack? onWrite,

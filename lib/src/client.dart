@@ -3,9 +3,13 @@ import 'dart:io';
 
 import './common.dart';
 
+/// TFTP Client
 class TFtpClient {
+  /// Client host to listen
   final String host;
+  /// Client port to listen
   final int port;
+  /// Block size
   final int blockSize;
 
   late RawDatagramSocket _socket;
@@ -15,6 +19,7 @@ class TFtpClient {
 
   TFtpClient(this.host, this.port, {this.blockSize = 512});
 
+  /// Bind client to host and port
   static Future<TFtpClient> bind(String host, int port, {int blockSize = 512}) {
     Completer<TFtpClient> completer = Completer();
     RawDatagramSocket.bind(host, port).then((socket) {
@@ -26,6 +31,14 @@ class TFtpClient {
     return completer.future;
   }
 
+  /// Put file to remote server
+  /// 
+  /// [localFile] Local file path
+  /// [remoteFile] Remote file path
+  /// [remoteAddress] Remote server address
+  /// [remotePort] Remote server port
+  /// [progressCallback] Progress callback
+  /// [onError] Error callback
   Future put(
       String localFile, String remoteFile, String remoteAddress, int remotePort,
       {ProgressCallback? progressCallback, ErrorCallBack? onError}) async {
@@ -66,6 +79,13 @@ class TFtpClient {
     }
   }
 
+  /// Get file from remote server
+  /// 
+  /// [localFile] Local file path
+  /// [remoteFile] Remote file path
+  /// [remoteAddress] Remote server address
+  /// [remotePort] Remote server port
+  /// [onError] Error callback
   Future get(
       String localFile, String remoteFile, String remoteAddress, int remotePort,
       {ErrorCallBack? onError}) async {
@@ -172,6 +192,7 @@ class TFtpClient {
     }
   }
 
+  /// Close client
   void close() {
     _socket.close();
   }

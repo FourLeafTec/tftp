@@ -1,6 +1,8 @@
 # tftp plugin
 
-A lib for Trivial File Transfer Protocol(TFtp) server and client.
+Libraries for creating TFTP servers and clients
+
+TFTP: Trivial File Transfer Protocol
 
 ## How To Use
 
@@ -37,17 +39,23 @@ We can create a tftp client to download/upload file to a tftp server.
 
 1. init
 
-> var client = await TFtpClient.bind("0.0.0.0", port);
+```dart
+var client = await TFtpClient.bind("0.0.0.0", port);
+```
 
 2. Get 
 
-> client.get(localFilePath, remoteFilePath,remoteHost, remotePort);
+```dart
+client.get(localFilePath, remoteFilePath,remoteHost, remotePort);
+```
 
 3. Put
 
-> client.put(localFilePath, remoteFilePath,remoteHost, remotePort);
+```dart
+client.put(localFilePath, remoteFilePath,remoteHost, remotePort);
+```
 
-### Topic:
+### Tips:
 
 If you want to read/write file to `EXTERNAL STORAGE`,you should 
 Add permissions in `AndroidManifest.xml`

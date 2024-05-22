@@ -17,3 +17,8 @@
 
 * upgrade sdk
 * fix byte list with growable=true
+
+## [1.2.1] - allow use with out flutter
+
+* allow use with out flutter
+* fix: close all client socket when server close
