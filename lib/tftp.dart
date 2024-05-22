@@ -1,5 +1,5 @@
 library tftp;
 
-export 'package:tftp/src/server.dart';
-export 'package:tftp/src/client.dart';
-export 'package:tftp/src/common.dart';
+export 'src/server.dart';
+export 'src/client.dart';
+export 'src/common.dart';

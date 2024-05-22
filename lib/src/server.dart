@@ -3,7 +3,7 @@ import 'dart:collection';
 import 'dart:io';
 import 'dart:math';
 
-import 'package:tftp/tftp.dart';
+import './common.dart';
 
 typedef ReadFileCallBack = String Function(String file,
     void Function({ProgressCallback? progressCallback}) onProgress);
@@ -21,7 +21,7 @@ class TFtpServer extends Stream<TFtpServerSocket> {
   }
 
   static Future<TFtpServer> bind(address, {int port = 69}) async {
-    return new Future(() => TFtpServer(address, port: port));
+    return Future(() => TFtpServer(address, port: port));
   }
 
   late final HashMap<String, TFtpServerSocket> _socketDic = HashMap();
@@ -208,7 +208,7 @@ class TFtpServerSocket {
 
   TransInfo _readFileNameAndTransType(List<int> data) {
     List<List<int>> packetData =
-        List.generate(2, (index) => List.empty(), growable: true);
+        List.generate(2, (index) => List.empty(growable: true), growable: true);
 
     int pos = -1;
     for (int val in data) {

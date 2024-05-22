@@ -11,9 +11,9 @@ class ServerDemo extends StatefulWidget {
 }
 
 class _ServerDemoState extends State<ServerDemo> {
-  StreamController<double> processController;
-  StreamController<String> infoController;
-  TFtpServer server;
+  StreamController<double>? processController;
+  StreamController<String>? infoController;
+  TFtpServer? server;
 
   @override
   void initState() {
@@ -24,8 +24,8 @@ class _ServerDemoState extends State<ServerDemo> {
 
   @override
   void dispose() {
-    processController.close();
-    infoController.close();
+    processController!.close();
+    infoController!.close();
     super.dispose();
   }
 
@@ -37,53 +37,53 @@ class _ServerDemoState extends State<ServerDemo> {
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: <Widget>[
           StreamBuilder<String>(
-            stream: infoController.stream,
+            stream: infoController?.stream,
             builder: (context, snapshot) {
-              return snapshot.hasData ? Text(snapshot.data) : Container();
+              return snapshot.hasData ? Text(snapshot.data??'') : Container();
             },
           ),
-          RaisedButton(
+          TextButton(
             onPressed: () async {
               Directory appDocDir = await getApplicationDocumentsDirectory();
               String appDocPath = appDocDir.path;
 
               server = await TFtpServer.bind("0.0.0.0", port: 6699);
-              server.listen((socket) {
+              server?.listen((socket) {
                 socket.listen(onRead: (file, onProcess) {
-                  infoController.add("read file from server:$file");
+                  infoController?.add("read file from server:$file");
                   onProcess(progressCallback: (count, total) {
-                    processController.add(count / total);
+                    processController?.add(count / total);
                   });
                   return "$appDocPath/$file";
                 }, onWrite: (file, doTransform) {
                   doTransform();
-                  infoController.add("write file to server:$file");
+                  infoController?.add("write file to server:$file");
                   return "$appDocPath/$file";
                 }, onError: (code, msg) {
-                  infoController.add("Error[$code]:$msg");
+                  infoController?.add("Error[$code]:$msg");
                 });
               });
-              infoController.add("Server start.");
+              infoController?.add("Server start.");
             },
             child: Text("Start"),
           ),
-          RaisedButton(
+          TextButton(
             onPressed: () {
               if (null != this.server) {
-                this.server.close();
-                infoController.add("Server stop.");
+                this.server?.close();
+                infoController?.add("Server stop.");
               }
             },
             child: Text("Stop"),
           ),
           StreamBuilder<double>(
-            stream: processController.stream,
+            stream: processController?.stream,
             builder: (context, snapshot) {
               return snapshot.hasData
                   ? Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        Text("Process:${(snapshot.data * 100).toStringAsFixed(2)}%"),
+                        Text("Process:${(snapshot.data! * 100).toStringAsFixed(2)}%"),
                         LinearProgressIndicator(
                           value: snapshot.data,
                         ),

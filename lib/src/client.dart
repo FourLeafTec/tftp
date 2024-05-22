@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:tftp/src/common.dart';
+import './common.dart';
 
 class TFtpClient {
   final String host;
@@ -11,7 +11,7 @@ class TFtpClient {
   late RawDatagramSocket _socket;
   late Stream<RawSocketEvent> _stream;
 
-  List<int> _receivedBlock = List.empty();
+  List<int> _receivedBlock = List.empty(growable: true);
 
   TFtpClient(this.host, this.port, {this.blockSize = 512});
 
@@ -122,7 +122,7 @@ class TFtpClient {
       TransType.octet,
       [0],
     ].expand((x) => x).toList();
-    _receivedBlock = List.empty();
+    _receivedBlock = List.empty(growable: true);
     _socket.send(sendPacket, InternetAddress(remoteAddress), remotePort);
 
     return completer.future;
