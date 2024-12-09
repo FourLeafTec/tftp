@@ -117,10 +117,11 @@ class TFtpServerSocket {
 
   /// Callback for error event
   ErrorCallBack? onError;
-
-  late File? _writeFile = null;
+  
+  late File? _writeFile = null; //set null to handle lateinitializationerror
   late IOSink? _writeSink;
-  late StreamController<List<int>>? _writeStreamCtrl = null;
+  late StreamController<List<int>>? _writeStreamCtrl = null;  //set null to handle lateinitializationerror
+
   late List<int>? _receivedBlock = List.empty(growable: true);
 
   /// Read data from client
@@ -174,7 +175,8 @@ class TFtpServerSocket {
         }
 
         bool _overwrite = true;
-        _writeStreamCtrl = StreamController(sync: true);
+
+        _writeStreamCtrl = StreamController(sync: true); //To handle Null check operator used on a null value.
         var _stream = _writeStreamCtrl!.stream;
         if (null != onWrite) {
           info.fileName =
