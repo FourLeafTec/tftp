@@ -21,19 +21,19 @@ typedef ReadFileCallBack = String Function(String file,
 typedef WriteFileCallBack = String Function(
     String file,
     void Function(
-            {bool overwrite,
-            StreamTransformer<List<int>, List<int>>? transformer})
-        doTransform);
+        {bool overwrite,
+        StreamTransformer<List<int>, List<int>>? transformer})
+    doTransform);
 
 /// TFtpServer is a server for TFTP protocol
 class TFtpServer extends Stream<TFtpServerSocket> {
-  TFtpServer(this.address, {this.port = 69}) {
+  TFtpServer(this.address, this.tftpGetMode, this.tftpPutMode, {this.port = 69}) {
     _controller = StreamController<TFtpServerSocket>(sync: true);
     RawDatagramSocket.bind(address, port).then(_init, onError: _initError);
   }
 
-  static Future<TFtpServer> bind(address, {int port = 69}) async {
-    return Future(() => TFtpServer(address, port: port));
+  static Future<TFtpServer> bind(address, getMode, putMode, {int port = 69}) async {
+    return Future(() => TFtpServer(address, getMode, putMode, port: port));
   }
 
   late final HashMap<String, TFtpServerSocket> _socketDic = HashMap();
@@ -41,6 +41,8 @@ class TFtpServer extends Stream<TFtpServerSocket> {
   late StreamController<TFtpServerSocket> _controller;
   dynamic address;
   int port;
+  bool tftpGetMode;
+  bool tftpPutMode;
 
   void _init(RawDatagramSocket socket) {
     _udpSocket = socket;
@@ -50,7 +52,8 @@ class TFtpServer extends Stream<TFtpServerSocket> {
         var tid = "${datagram?.address.toString()}:${datagram?.port}";
         if (null == _socketDic[tid]) {
           var socket =
-              TFtpServerSocket(_udpSocket, datagram!.address, datagram.port);
+          TFtpServerSocket(
+              _udpSocket, datagram!.address, datagram.port, tftpGetMode, tftpPutMode);
           _socketDic[tid] = socket;
           _controller.add(socket);
         }
@@ -71,11 +74,10 @@ class TFtpServer extends Stream<TFtpServerSocket> {
   }
 
   @override
-  StreamSubscription<TFtpServerSocket> listen(
-      void Function(TFtpServerSocket event)? onData,
+  StreamSubscription<TFtpServerSocket> listen(void Function(TFtpServerSocket event)? onData,
       {Function? onError,
-      void Function()? onDone,
-      bool? cancelOnError}) {
+        void Function()? onDone,
+        bool? cancelOnError}) {
     return _controller.stream.listen(onData,
         onError: onError, onDone: onDone, cancelOnError: cancelOnError);
   }
@@ -85,7 +87,8 @@ class TFtpServer extends Stream<TFtpServerSocket> {
 ///
 /// The server create a socket for client to connect
 class TFtpServerSocket {
-  TFtpServerSocket(this.socket, this.remoteAddress, this.remotePort,
+  TFtpServerSocket(this.socket, this.remoteAddress, this.remotePort, this.tftpGetMode,
+      this.tftpPutMode,
       {this.blockSize = 512, this.onRead, this.onWrite, this.onError});
 
   /// The socket for client to connect
@@ -100,6 +103,12 @@ class TFtpServerSocket {
   /// The block size for transfer file
   int blockSize;
 
+  ///To allow read mode. Read mode allows to download file from the server
+  bool tftpGetMode;
+
+  ///To allow write mode. Write mode allows to upload file to the server
+  bool tftpPutMode;
+
   /// Callback for read event
   ReadFileCallBack? onRead;
 
@@ -109,9 +118,9 @@ class TFtpServerSocket {
   /// Callback for error event
   ErrorCallBack? onError;
 
-  late File? _writeFile;
+  late File? _writeFile = null;
   late IOSink? _writeSink;
-  late StreamController<List<int>>? _writeStreamCtrl;
+  late StreamController<List<int>>? _writeStreamCtrl = null;
   late List<int>? _receivedBlock = List.empty(growable: true);
 
   /// Read data from client
@@ -123,6 +132,11 @@ class TFtpServerSocket {
   void _read(List<int> data) {
     switch (data[0] << 8 | data[1]) {
       case OpCode.RRQ_VALUE:
+        //To block GET request from the client
+        if (!tftpGetMode) {
+          print("TFTP GET not allowed");
+          return;
+        }
         var info = _readFileNameAndTransType(data);
         print("read server file:${info.fileName} with ${info.transType}");
         ProgressCallback? onReceive;
@@ -139,6 +153,11 @@ class TFtpServerSocket {
         _write(file, onReceiveProgress: onReceive);
         return;
       case OpCode.WRQ_VALUE:
+        //To block PUT request from the client
+        if (!tftpPutMode) {
+          print("TFTP PUT not allowed");
+          return;
+        }
         var info = _readFileNameAndTransType(data);
         print("write server file:${info.fileName} with ${info.transType}");
 
@@ -155,15 +174,16 @@ class TFtpServerSocket {
         }
 
         bool _overwrite = true;
+        _writeStreamCtrl = StreamController(sync: true);
         var _stream = _writeStreamCtrl!.stream;
         if (null != onWrite) {
           info.fileName =
               onWrite!(info.fileName, ({overwrite = true, transformer}) {
-            _overwrite = overwrite;
-            if (null != transformer) {
-              _stream = _writeStreamCtrl!.stream.transform(transformer);
-            }
-          });
+                _overwrite = overwrite;
+                if (null != transformer) {
+                  _stream = _writeStreamCtrl!.stream.transform(transformer);
+                }
+              });
         }
         _writeFile = File(info.fileName);
 
@@ -177,7 +197,6 @@ class TFtpServerSocket {
           throwError(Error.ACCESS_VIOLATION);
           return;
         }
-        _writeStreamCtrl = StreamController(sync: true);
         _writeSink = _writeFile?.openWrite();
         _writeSink?.addStream(_stream);
 
@@ -245,7 +264,7 @@ class TFtpServerSocket {
 
   TransInfo _readFileNameAndTransType(List<int> data) {
     List<List<int>> packetData =
-        List.generate(2, (index) => List.empty(growable: true), growable: true);
+    List.generate(2, (index) => List.empty(growable: true), growable: true);
 
     int pos = -1;
     for (int val in data) {
@@ -282,7 +301,10 @@ class TFtpServerSocket {
         var data = sendSocket.receive();
         if (data!.data[0] << 8 | data.data[1] == OpCode.ACK_VALUE) {
           var ackValue = data.data[2] << 8 | data.data[3];
-          sendCompleter.completer!.complete(ackValue);
+          //Handling unhandled exception: Bad state: Future already completed
+          if (!sendCompleter.completer!.isCompleted) {
+            sendCompleter.completer!.complete(ackValue);
+          }
         }
       }
     });
@@ -317,14 +339,14 @@ class TFtpServerSocket {
     return completer.future;
   }
 
-  Future _send(
-      RawDatagramSocket sendSocket,
+  Future _send(RawDatagramSocket sendSocket,
       int blockNum,
       List<int> sendPacket,
       ProgressCallback? onReceiveProgress,
       int totalSize,
       SendCompleter sendCompleter) async {
-    int ack;
+    
+    int ack = -1; // Initialize with an invalid block number
     int sendTime = 0;
     do {
       sendTime++;
@@ -335,11 +357,18 @@ class TFtpServerSocket {
         processed = processed > totalSize ? totalSize : processed;
         onReceiveProgress(processed, totalSize);
       }
-      sendCompleter.completer = Completer();
-      ack = await sendCompleter.completer!.future.timeout(
-        const Duration(seconds: 1),
-      );
+      sendCompleter.completer = Completer<int>();
+      try {
+        ack = await sendCompleter.completer!.future.timeout(
+          const Duration(seconds: 3), // Consider increasing the timeout
+        );
+      } catch (e) {
+        print('Timeout waiting for ACK for block $blockNum (attempt $sendTime)');
+      }
     } while (ack != blockNum && sendTime < 5);
+    if (ack != blockNum) {
+      print('Failed to receive ACK for block $blockNum after 5 attempts.');
+    }
   }
 
   /// Close the socket
