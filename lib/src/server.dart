@@ -117,10 +117,11 @@ class TFtpServerSocket {
 
   /// Callback for error event
   ErrorCallBack? onError;
-
-  late File? _writeFile = null;
+    
+  late File? _writeFile = null; //set null to handle lateinitializationerror
   late IOSink? _writeSink;
-  late StreamController<List<int>>? _writeStreamCtrl = null;
+  late StreamController<List<int>>? _writeStreamCtrl = null;  //set null to handle lateinitializationerror
+
   late List<int>? _receivedBlock = List.empty(growable: true);
 
   /// Read data from client
@@ -174,7 +175,8 @@ class TFtpServerSocket {
         }
 
         bool _overwrite = true;
-        _writeStreamCtrl = StreamController(sync: true);
+        
+        _writeStreamCtrl = StreamController(sync: true); //To handle Null check operator used on a null value.
         var _stream = _writeStreamCtrl!.stream;
         if (null != onWrite) {
           info.fileName =
@@ -345,7 +347,6 @@ class TFtpServerSocket {
       ProgressCallback? onReceiveProgress,
       int totalSize,
       SendCompleter sendCompleter) async {
-    
     int ack = -1; // Initialize with an invalid block number
     int sendTime = 0;
     do {
@@ -360,9 +361,10 @@ class TFtpServerSocket {
       sendCompleter.completer = Completer<int>();
       try {
         ack = await sendCompleter.completer!.future.timeout(
-          const Duration(seconds: 3), // Consider increasing the timeout
+          const Duration(seconds: 3), // timeout to wait the acknowledgement 
         );
       } catch (e) {
+        //Catch the Timeoutexcetion for sendCompleter.completer!.future.timeout
         print('Timeout waiting for ACK for block $blockNum (attempt $sendTime)');
       }
     } while (ack != blockNum && sendTime < 5);
