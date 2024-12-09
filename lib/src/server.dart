@@ -133,9 +133,10 @@ class TFtpServerSocket {
   void _read(List<int> data) {
     switch (data[0] << 8 | data[1]) {
       case OpCode.RRQ_VALUE:
-      //To block GET request from the client
+        //To block GET request from the client
         if (!tftpGetMode) {
           print("TFTP GET not allowed");
+          throwError(0, "Permission denied.")
           return;
         }
         var info = _readFileNameAndTransType(data);
@@ -154,9 +155,10 @@ class TFtpServerSocket {
         _write(file, onReceiveProgress: onReceive);
         return;
       case OpCode.WRQ_VALUE:
-      //To block PUT request from the client
+        //To block PUT request from the client
         if (!tftpPutMode) {
           print("TFTP PUT not allowed");
+          throwError(0, "Permission denied.")
           return;
         }
         var info = _readFileNameAndTransType(data);
@@ -175,7 +177,6 @@ class TFtpServerSocket {
         }
 
         bool _overwrite = true;
-
         _writeStreamCtrl = StreamController(sync: true); //To handle Null check operator used on a null value.
         var _stream = _writeStreamCtrl!.stream;
         if (null != onWrite) {
@@ -345,7 +346,8 @@ class TFtpServerSocket {
     return completer.future;
   }
 
-  Future<bool> _send(RawDatagramSocket sendSocket,
+
+  Future<bool> _send(RawDatagramSocket sendSocket
       int blockNum,
       List<int> sendPacket,
       ProgressCallback? onReceiveProgress,
