@@ -30,3 +30,9 @@
 ## [1.2.3] - update package description
 
 * update package description
+
+## [1.2.4] - add Get & Put permission.
+
+* Add Get & Put server permission control.
+* fix transfer bug.
+* fix Exception handler for server.

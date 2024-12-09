@@ -4,11 +4,14 @@ description: |
   This library provides a comprehensive set of functions and structures to simplify the creation of robust TFTP servers and clients.
 topics:
   - tftp
-version: 1.2.3
+version: 1.2.4
 homepage: https://github.com/FourLeafTec/tftp
 
 environment:
   sdk: ">=3.3.3 <4.0.0"
+
+dependencies:
+  logging: ^1.3.0
 
 dev_dependencies:
   lints: ^4.0.0
