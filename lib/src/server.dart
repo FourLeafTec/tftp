@@ -117,7 +117,7 @@ class TFtpServerSocket {
 
   /// Callback for error event
   ErrorCallBack? onError;
-    
+  
   late File? _writeFile = null; //set null to handle lateinitializationerror
   late IOSink? _writeSink;
   late StreamController<List<int>>? _writeStreamCtrl = null;  //set null to handle lateinitializationerror
@@ -136,6 +136,7 @@ class TFtpServerSocket {
         //To block GET request from the client
         if (!tftpGetMode) {
           print("TFTP GET not allowed");
+          throwError(0, "Permission denied.")
           return;
         }
         var info = _readFileNameAndTransType(data);
@@ -157,6 +158,7 @@ class TFtpServerSocket {
         //To block PUT request from the client
         if (!tftpPutMode) {
           print("TFTP PUT not allowed");
+          throwError(0, "Permission denied.")
           return;
         }
         var info = _readFileNameAndTransType(data);
@@ -175,7 +177,6 @@ class TFtpServerSocket {
         }
 
         bool _overwrite = true;
-        
         _writeStreamCtrl = StreamController(sync: true); //To handle Null check operator used on a null value.
         var _stream = _writeStreamCtrl!.stream;
         if (null != onWrite) {
@@ -322,8 +323,10 @@ class TFtpServerSocket {
           [_blockNum >> 8, _blockNum & 0xff],
           dataBlock
         ].expand((x) => x).toList();
-        await _send(sendSocket, _blockNum, sendPacket, onReceiveProgress,
-            totalSize, sendCompleter);
+        if (!await _send(sendSocket, _blockNum, sendPacket, onReceiveProgress,
+            totalSize, sendCompleter)) {
+          break; //Break the send process. This happens when the client breaks the transfer or the timeout happens
+        }
         if (_blockNum * blockSize == totalSize) {
           _blockNum++;
           _blockNum = _blockNum > 65535 ? 0 : _blockNum;
@@ -331,8 +334,10 @@ class TFtpServerSocket {
             [0, OpCode.DATA_VALUE],
             [_blockNum >> 8, _blockNum & 0xff],
           ].expand((x) => x).toList();
-          await _send(sendSocket, _blockNum, sendPacket, onReceiveProgress,
-              totalSize, sendCompleter);
+          if (await _send(sendSocket, _blockNum, sendPacket, onReceiveProgress,
+              totalSize, sendCompleter)) {
+            break; //Break the send process. This happens when the client breaks the transfer or the timeout happens
+          }
         }
       }
       completer.complete();
@@ -341,7 +346,8 @@ class TFtpServerSocket {
     return completer.future;
   }
 
-  Future _send(RawDatagramSocket sendSocket,
+
+  Future<bool> _send(RawDatagramSocket sendSocket
       int blockNum,
       List<int> sendPacket,
       ProgressCallback? onReceiveProgress,
@@ -349,6 +355,7 @@ class TFtpServerSocket {
       SendCompleter sendCompleter) async {
     int ack = -1; // Initialize with an invalid block number
     int sendTime = 0;
+    bool result = false;
     do {
       sendTime++;
       sendSocket.send(sendPacket, remoteAddress, remotePort);
@@ -361,16 +368,24 @@ class TFtpServerSocket {
       sendCompleter.completer = Completer<int>();
       try {
         ack = await sendCompleter.completer!.future.timeout(
-          const Duration(seconds: 3), // timeout to wait the acknowledgement 
+          const Duration(milliseconds: 5000), // Consider increasing the timeout
         );
+        result = true;
       } catch (e) {
-        //Catch the Timeoutexcetion for sendCompleter.completer!.future.timeout
         print('Timeout waiting for ACK for block $blockNum (attempt $sendTime)');
+        if (sendTime == 5) {
+          print('Host connection timed out!');
+          ack = blockNum;
+          result = false;
+          break;
+        }
       }
     } while (ack != blockNum && sendTime < 5);
     if (ack != blockNum) {
       print('Failed to receive ACK for block $blockNum after 5 attempts.');
+      result = false;
     }
+    return result;
   }
 
   /// Close the socket
